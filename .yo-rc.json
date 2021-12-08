@@ -1,0 +1,10 @@
+{
+  "generator-jhipster-blueprint": {
+    "promptValues": {
+      "githubName": "nwaki1",
+      "authorName": "Waki Abdurrazak",
+      "authorEmail": "waki4d@gmail.com",
+      "authorUrl": "https://github.com/nwaki1"
+    }
+  }
+}

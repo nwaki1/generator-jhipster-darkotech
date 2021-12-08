@@ -1,0 +1,2 @@
+hello darkotech!
+It's dummy.txt
