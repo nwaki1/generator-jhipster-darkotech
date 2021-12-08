@@ -1,92 +1,203 @@
+/**
+ * Copyright 2013-2021 the original author or authors from the JHipster project.
+ *
+ * This file is part of the JHipster project, see https://www.jhipster.tech/
+ * for more information.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /* eslint-disable consistent-return */
-const chalk = require('chalk');
-const CommonGenerator = require('generator-jhipster/generators/common');
+const _ = require('lodash');
 
-module.exports = class extends CommonGenerator {
-    constructor(args, opts) {
-        super(args, { fromBlueprint: true, ...opts }); // fromBlueprint variable is important
+const BaseBlueprintGenerator = require('../generator-base-blueprint');
+const writeFiles = require('./files').writeFiles;
+const prettierConfigFiles = require('./files').prettierConfigFiles;
+const constants = require('../generator-constants');
+const packageJson = require('../../package.json');
 
-        const jhContext = (this.jhipsterContext = this.options.jhipsterContext);
+module.exports = class JHipsterCommonGenerator extends BaseBlueprintGenerator {
+  constructor(args, options, features) {
+    super(args, options, { unique: 'namespace', ...features });
 
-        if (!jhContext) {
-            this.error(`This is a JHipster blueprint and should be used only like ${chalk.yellow('jhipster --blueprint darkotech')}`);
+    if (this.options.help) {
+      return;
+    }
+
+    this.loadStoredAppOptions();
+    this.loadRuntimeOptions();
+  }
+
+  async _postConstruct() {
+    if (!this.fromBlueprint) {
+      await this.composeWithBlueprints('common');
+    }
+  }
+
+  // Public API method used by the getter and also by Blueprints
+  _initializing() {
+    return {
+      validateFromCli() {
+        this.checkInvocationFromCLI();
+      },
+
+      setupConstants() {
+        // Make constants available in templates
+        this.MAIN_DIR = constants.MAIN_DIR;
+        this.TEST_DIR = constants.TEST_DIR;
+        this.SERVER_MAIN_RES_DIR = constants.SERVER_MAIN_RES_DIR;
+        this.ANGULAR = constants.SUPPORTED_CLIENT_FRAMEWORKS.ANGULAR;
+        this.REACT = constants.SUPPORTED_CLIENT_FRAMEWORKS.REACT;
+
+        // Make documentation URL available in templates
+        this.DOCUMENTATION_URL = constants.JHIPSTER_DOCUMENTATION_URL;
+        this.DOCUMENTATION_ARCHIVE_PATH = constants.JHIPSTER_DOCUMENTATION_ARCHIVE_PATH;
+      },
+    };
+  }
+
+  get initializing() {
+    if (this.delegateToBlueprint) return {};
+    return this._initializing();
+  }
+
+  // Public API method used by the getter and also by Blueprints
+  _configuring() {
+    return {
+      async configureMonorepository() {
+        if (this.jhipsterConfig.monorepository) return;
+
+        const git = this.createGit();
+        if ((await git.checkIsRepo()) && !(await git.checkIsRepo('root'))) {
+          this.jhipsterConfig.monorepository = true;
         }
+      },
+      configureCommitHook() {
+        if (this.jhipsterConfig.monorepository) {
+          this.jhipsterConfig.skipCommitHook = true;
+        }
+      },
+    };
+  }
 
-        this.configOptions = jhContext.configOptions || {};
+  get configuring() {
+    if (this.delegateToBlueprint) return {};
+    return this._configuring();
+  }
 
-        // This sets up options for this sub generator and is being reused from JHipster
-        jhContext.setupServerOptions(this, jhContext);
-        jhContext.setupClientOptions(this, jhContext);
-    }
+  // Public API method used by the getter and also by Blueprints
+  _loading() {
+    return {
+      loadSharedConfig() {
+        this.loadAppConfig();
+        this.loadDerivedAppConfig();
+        this.loadClientConfig();
+        this.loadDerivedClientConfig();
+        this.loadServerConfig();
+        this.loadTranslationConfig();
+        this.loadPlatformConfig();
+      },
 
-    get initializing() {
-        /**
-         * Any method beginning with _ can be reused from the superclass `CommonGenerator`
-         *
-         * There are multiple ways to customize a phase from JHipster.
-         *
-         * 1. Let JHipster handle a phase, blueprint doesnt override anything.
-         * ```
-         *      return super._initializing();
-         * ```
-         *
-         * 2. Override the entire phase, this is when the blueprint takes control of a phase
-         * ```
-         *      return {
-         *          myCustomInitPhaseStep() {
-         *              // Do all your stuff here
-         *          },
-         *          myAnotherCustomInitPhaseStep(){
-         *              // Do all your stuff here
-         *          }
-         *      };
-         * ```
-         *
-         * 3. Partially override a phase, this is when the blueprint gets the phase from JHipster and customizes it.
-         * ```
-         *      const phaseFromJHipster = super._initializing();
-         *      const myCustomPhaseSteps = {
-         *          displayLogo() {
-         *              // override the displayLogo method from the _initializing phase of JHipster
-         *          },
-         *          myCustomInitPhaseStep() {
-         *              // Do all your stuff here
-         *          },
-         *      }
-         *      return Object.assign(phaseFromJHipster, myCustomPhaseSteps);
-         * ```
-         */
-        // Here we are not overriding this phase and hence its being handled by JHipster
-        return super._initializing();
-    }
+      loadPackageJson() {
+        // The installed prettier version should be the same that the one used during JHipster generation to avoid formatting differences
+        _.merge(this.dependabotPackageJson, {
+          devDependencies: {
+            prettier: packageJson.dependencies.prettier,
+            'prettier-plugin-java': packageJson.dependencies['prettier-plugin-java'],
+            'prettier-plugin-packagejson': packageJson.dependencies['prettier-plugin-packagejson'],
+          },
+        });
 
-    get prompting() {
-        // Here we are not overriding this phase and hence its being handled by JHipster
-        return super._prompting();
-    }
+        // Load common package.json into packageJson
+        _.merge(this.dependabotPackageJson, this.fs.readJSON(this.fetchFromInstalledJHipster('common', 'templates', 'package.json')));
+      },
+    };
+  }
 
-    get configuring() {
-        // Here we are not overriding this phase and hence its being handled by JHipster
-        return super._configuring();
-    }
+  get loading() {
+    if (this.delegateToBlueprint) return {};
+    return this._loading();
+  }
 
-    get default() {
-        // Here we are not overriding this phase and hence its being handled by JHipster
-        return super._default();
-    }
+  // Public API method used by the getter and also by Blueprints
+  _preparing() {
+    return {
+      prepareForTemplates() {
+        this.BUILD_DIR = this.getBuildDirectoryForBuildTool(this.buildTool);
+        this.CLIENT_DIST_DIR = this.getResourceBuildDirectoryForBuildTool(this.buildTool) + constants.CLIENT_DIST_DIR;
+      },
+    };
+  }
 
-    get writing() {
-        // Here we are not overriding this phase and hence its being handled by JHipster
-        return super._writing();
-    }
+  get preparing() {
+    if (this.delegateToBlueprint) return {};
+    return this._preparing();
+  }
 
-    get install() {
-        // Here we are not overriding this phase and hence its being handled by JHipster
-        return super._install();
-    }
+  // Public API method used by the getter and also by Blueprints
+  _default() {
+    return {
+      ...super._missingPreDefault(),
+    };
+  }
 
-    get end() {
-        // Here we are not overriding this phase and hence its being handled by JHipster
-        return super._end();
-    }
+  get default() {
+    if (this.delegateToBlueprint) return {};
+    return this._default();
+  }
+
+  // Public API method used by the getter and also by Blueprints
+  _writing() {
+    return {
+      cleanup() {
+        if (this.isJhipsterVersionLessThan('7.1.1')) {
+          if (!this.skipCommitHook) {
+            this.removeFile('.huskyrc');
+          }
+        }
+      },
+      writePrettierConfig() {
+        // Prettier configuration needs to be the first written files - all subgenerators considered - for prettier transform to work
+        return this.writeFilesToDisk(prettierConfigFiles);
+      },
+      ...writeFiles(),
+      ...super._missingPostWriting(),
+    };
+  }
+
+  get writing() {
+    if (this.delegateToBlueprint) return {};
+    return this._writing();
+  }
+
+  _postWriting() {
+    return {
+      addCommitHookDependencies() {
+        if (this.skipCommitHook) return;
+        this.packageJson.merge({
+          scripts: {
+            prepare: 'husky install',
+          },
+          devDependencies: {
+            husky: this.dependabotPackageJson.devDependencies.husky,
+            'lint-staged': this.dependabotPackageJson.devDependencies['lint-staged'],
+          },
+        });
+      },
+    };
+  }
+
+  get postWriting() {
+    if (this.delegateToBlueprint) return {};
+    return this._postWriting();
+  }
 };
