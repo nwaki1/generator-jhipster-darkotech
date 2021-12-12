@@ -2,7 +2,7 @@ const path = require('path');
 const assert = require('yeoman-assert');
 const helpers = require('yeoman-test');
 
-describe('Subgenerator client of darkotech JHipster blueprint', () => {
+describe('Subgenerator client of search-filter JHipster blueprint', () => {
     describe('Sample test', () => {
         before(done => {
             helpers
@@ -10,13 +10,13 @@ describe('Subgenerator client of darkotech JHipster blueprint', () => {
                 .withOptions({
                     'from-cli': true,
                     skipInstall: true,
-                    blueprint: 'darkotech',
+                    blueprint: 'search-filter',
                     skipChecks: true
                 })
                 .withGenerators([
                     [
-                        require('../generators/client'), // eslint-disable-line global-require
-                        'jhipster-darkotech:client',
+                        require('../generators/client/index.js'), // eslint-disable-line global-require
+                        'jhipster-search-filter:client',
                         path.join(__dirname, '../generators/client/index.js')
                     ]
                 ])
