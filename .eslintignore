@@ -1,8 +1,5 @@
 coverage
 generators/**/templates
 node_modules
-test-integration
+travis
 docs
-test/templates
-jdl/bundling
-test/fixtures/**

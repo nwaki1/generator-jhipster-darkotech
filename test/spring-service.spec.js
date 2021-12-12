@@ -1,74 +1,39 @@
 const path = require('path');
+const fse = require('fs-extra');
 const assert = require('yeoman-assert');
 const helpers = require('yeoman-test');
-const fse = require('fs-extra');
-const constants = require('../generators/generator-constants');
 
-const SERVER_MAIN_SRC_DIR = constants.SERVER_MAIN_SRC_DIR;
+describe('Subgenerator spring-service of darkotech JHipster blueprint', () => {
+    describe('Sample test', () => {
+        before(done => {
+            helpers
+                .run('generator-jhipster/generators/spring-service')
+                .inTmpDir(dir => {
+                    fse.copySync(path.join(__dirname, '../test/templates/ngx-blueprint'), dir);
+                })
+                .withOptions({
+                    'from-cli': true,
+                    skipInstall: true,
+                    blueprint: 'darkotech',
+                    skipChecks: true
+                })
+                .withGenerators([
+                    [
+                        require('../generators/spring-service'), // eslint-disable-line global-require
+                        'jhipster-darkotech:spring-service',
+                        path.join(__dirname, '../generators/spring-service/index.js')
+                    ]
+                ])
+                .withArguments(['foo'])
+                .withPrompts({
+                    useInterface: false
+                })
+                .on('end', done);
+        });
 
-describe('JHipster generator service', () => {
-  describe('creates service without interface', () => {
-    before(done => {
-      helpers
-        .run(require.resolve('../generators/spring-service'))
-        .inTmpDir(dir => {
-          fse.copySync(path.join(__dirname, '../test/templates/default'), dir);
-        })
-        .withArguments(['foo'])
-        .withPrompts({
-          useInterface: false,
-        })
-        .on('end', done);
+        it('it works', () => {
+            // Adds your tests here
+            assert.textEqual('Write your own tests!', 'Write your own tests!');
+        });
     });
-
-    it('creates service file', () => {
-      assert.file([`${SERVER_MAIN_SRC_DIR}com/mycompany/myapp/service/FooService.java`]);
-    });
-
-    it('doesnt create interface', () => {
-      assert.noFile([`${SERVER_MAIN_SRC_DIR}com/mycompany/myapp/service/impl/FooServiceImpl.java`]);
-    });
-  });
-
-  describe('creates service with interface', () => {
-    before(done => {
-      helpers
-        .run(require.resolve('../generators/spring-service'))
-        .inTmpDir(dir => {
-          fse.copySync(path.join(__dirname, '../test/templates/default'), dir);
-        })
-        .withArguments(['foo'])
-        .withPrompts({
-          useInterface: true,
-        })
-        .on('end', done);
-    });
-
-    it('creates service file', () => {
-      assert.file([
-        `${SERVER_MAIN_SRC_DIR}com/mycompany/myapp/service/FooService.java`,
-        `${SERVER_MAIN_SRC_DIR}com/mycompany/myapp/service/impl/FooServiceImpl.java`,
-      ]);
-    });
-  });
-
-  describe('creates service with --default flag', () => {
-    before(done => {
-      helpers
-        .run(require.resolve('../generators/spring-service'))
-        .inTmpDir(dir => {
-          fse.copySync(path.join(__dirname, '../test/templates/default'), dir);
-        })
-        .withArguments(['foo'])
-        .withOptions({ default: true })
-        .on('end', done);
-    });
-
-    it('creates service file', () => {
-      assert.file([
-        `${SERVER_MAIN_SRC_DIR}com/mycompany/myapp/service/FooService.java`,
-        `${SERVER_MAIN_SRC_DIR}com/mycompany/myapp/service/impl/FooServiceImpl.java`,
-      ]);
-    });
-  });
 });

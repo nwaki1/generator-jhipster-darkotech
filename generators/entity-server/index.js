@@ -1,216 +1,84 @@
-/**
- * Copyright 2013-2021 the original author or authors from the JHipster project.
- *
- * This file is part of the JHipster project, see https://www.jhipster.tech/
- * for more information.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 /* eslint-disable consistent-return */
-const constants = require('../generator-constants');
-const { writeFiles, customizeFiles } = require('./files');
-const utils = require('../utils');
-const BaseBlueprintGenerator = require('../generator-base-blueprint');
-const { GENERATOR_ENTITY_SERVER } = require('../generator-list');
-const { OAUTH2, SESSION } = require('../../jdl/jhipster/authentication-types');
-const { SQL } = require('../../jdl/jhipster/database-types');
-const { isReservedTableName } = require('../../jdl/jhipster/reserved-keywords');
+const chalk = require('chalk');
+const EntityServerGenerator = require('generator-jhipster/generators/entity-server');
 
-/* constants used throughout */
+module.exports = class extends EntityServerGenerator {
+    constructor(args, opts) {
+        super(args, { fromBlueprint: true, ...opts }); // fromBlueprint variable is important
 
-module.exports = class extends BaseBlueprintGenerator {
-  constructor(args, options, features) {
-    super(args, options, features);
-
-    this.entity = this.options.context;
-
-    this.jhipsterContext = this.options.jhipsterContext || this.options.context;
-  }
-
-  async _postConstruct() {
-    if (!this.fromBlueprint) {
-      await this.composeWithBlueprints(GENERATOR_ENTITY_SERVER, { context: this.options.context });
-    }
-  }
-
-  // Public API method used by the getter and also by Blueprints
-  _initializing() {
-    return {
-      setupConstants() {
-        // Make constants available in templates
-        this.LIQUIBASE_DTD_VERSION = constants.LIQUIBASE_DTD_VERSION;
-      },
-    };
-  }
-
-  get initializing() {
-    if (this.delegateToBlueprint) return {};
-    return this._initializing();
-  }
-
-  _preparing() {
-    return {
-      validateDatabaseSafety() {
-        const entity = this.entity;
-        if (isReservedTableName(entity.entityInstance, entity.prodDatabaseType) && entity.jhiPrefix) {
-          entity.entityInstanceDbSafe = `${entity.jhiPrefix}${entity.entityClass}`;
-        } else {
-          entity.entityInstanceDbSafe = entity.entityInstance;
+        if (!this.jhipsterContext) {
+            this.error(`This is a JHipster blueprint and should be used only like ${chalk.yellow('jhipster --blueprint darkotech')}`);
         }
-      },
-    };
-  }
-
-  get preparing() {
-    if (this.delegateToBlueprint) return {};
-    return this._preparing();
-  }
-
-  // Public API method used by the getter and also by Blueprints
-  _preparingFields() {
-    return {
-      processDerivedPrimaryKeyFields() {
-        const primaryKey = this.entity.primaryKey;
-        if (!primaryKey || primaryKey.composite || !primaryKey.derivedFields) {
-          return;
-        }
-        // derivedPrimary uses '@MapsId', which requires for each relationship id field to have corresponding field in the model
-        const derivedFields = this.entity.primaryKey.derivedFields;
-        this.entity.fields.unshift(...derivedFields);
-      },
-      processFieldType() {
-        this.entity.fields.forEach(field => {
-          if (field.blobContentTypeText) {
-            field.javaFieldType = 'String';
-          } else {
-            field.javaFieldType = field.fieldType;
-          }
-        });
-      },
-    };
-  }
-
-  get preparingFields() {
-    if (this.delegateToBlueprint) return {};
-    return this._preparingFields();
-  }
-
-  _default() {
-    return {
-      ...super._missingPreDefault(),
-
-      loadConfigIntoGenerator() {
-        utils.copyObjectProps(this, this.entity);
-
-        this.testsNeedCsrf = [OAUTH2, SESSION].includes(this.entity.authenticationType);
-        this.officialDatabaseType = constants.OFFICIAL_DATABASE_TYPE_NAMES[this.entity.databaseType];
-      },
-
-      /**
-       * Process json ignore references to prevent cyclic relationships.
-       */
-      processJsonIgnoreReferences() {
-        this.relationships
-          .filter(relationship => relationship.ignoreOtherSideProperty === undefined)
-          .forEach(relationship => {
-            relationship.ignoreOtherSideProperty =
-              !relationship.embedded && !!relationship.otherEntity && relationship.otherEntity.relationships.length > 0;
-          });
-        this.relationshipsContainOtherSideIgnore = this.relationships.some(relationship => relationship.ignoreOtherSideProperty);
-      },
-
-      processJavaEntityImports() {
-        this.importApiModelProperty =
-          this.relationships.some(relationship => relationship.javadoc) || this.fields.some(field => field.javadoc);
-      },
-
-      processUniqueEnums() {
-        this.uniqueEnums = {};
-
-        this.fields.forEach(field => {
-          if (
-            field.fieldIsEnum &&
-            (!this.uniqueEnums[field.fieldType] || (this.uniqueEnums[field.fieldType] && field.fieldValues.length !== 0))
-          ) {
-            this.uniqueEnums[field.fieldType] = field.fieldType;
-          }
-        });
-      },
-
-      useMapsIdRelation() {
-        if (this.primaryKey && this.primaryKey.derived) {
-          this.isUsingMapsId = true;
-          this.mapsIdAssoc = this.relationships.find(rel => rel.id);
-          this.hasOauthUser = this.mapsIdAssoc.otherEntityName === 'user' && this.authenticationType === OAUTH2;
-        } else {
-          this.isUsingMapsId = false;
-          this.mapsIdAssoc = null;
-          this.hasOauthUser = false;
-        }
-      },
-
-      processUniqueEntityTypes() {
-        this.reactiveOtherEntities = new Set(this.reactiveEagerRelations.map(rel => rel.otherEntity));
-        this.reactiveUniqueEntityTypes = new Set(this.reactiveEagerRelations.map(rel => rel.otherEntityNameCapitalized));
-        this.reactiveUniqueEntityTypes.add(this.entityClass);
-      },
-    };
-  }
-
-  get default() {
-    if (this.delegateToBlueprint) return {};
-    return this._default();
-  }
-
-  // Public API method used by the getter and also by Blueprints
-  _writing() {
-    return {
-      ...writeFiles(),
-      ...super._missingPostWriting(),
-    };
-  }
-
-  get writing() {
-    if (this.delegateToBlueprint) return {};
-    return this._writing();
-  }
-
-  // Public API method used by the getter and also by Blueprints
-  _postWriting() {
-    return {
-      customizeFiles() {
-        return customizeFiles.call(this);
-      },
-    };
-  }
-
-  get postWriting() {
-    if (this.delegateToBlueprint) return {};
-    return this._postWriting();
-  }
-
-  /* Private methods used in templates */
-  _getJoinColumnName(relationship) {
-    if (relationship.id === true) {
-      return 'id';
     }
-    return `${this.getColumnName(relationship.relationshipName)}_id`;
-  }
 
-  _generateSqlSafeName(name) {
-    if (isReservedTableName(name, SQL)) {
-      return `e_${name}`;
+    get initializing() {
+        /**
+         * Any method beginning with _ can be reused from the superclass `EntityServerGenerator`
+         *
+         * There are multiple ways to customize a phase from JHipster.
+         *
+         * 1. Let JHipster handle a phase, blueprint doesnt override anything.
+         * ```
+         *      return super._initializing();
+         * ```
+         *
+         * 2. Override the entire phase, this is when the blueprint takes control of a phase
+         * ```
+         *      return {
+         *          myCustomInitPhaseStep() {
+         *              // Do all your stuff here
+         *          },
+         *          myAnotherCustomInitPhaseStep(){
+         *              // Do all your stuff here
+         *          }
+         *      };
+         * ```
+         *
+         * 3. Partially override a phase, this is when the blueprint gets the phase from JHipster and customizes it.
+         * ```
+         *      const phaseFromJHipster = super._initializing();
+         *      const myCustomPhaseSteps = {
+         *          displayLogo() {
+         *              // override the displayLogo method from the _initializing phase of JHipster
+         *          },
+         *          myCustomInitPhaseStep() {
+         *              // Do all your stuff here
+         *          },
+         *      }
+         *      return Object.assign(phaseFromJHipster, myCustomPhaseSteps);
+         * ```
+         */
+        // Here we are not overriding this phase and hence its being handled by JHipster
+        return super._initializing();
     }
-    return name;
-  }
+
+    get prompting() {
+        // Here we are not overriding this phase and hence its being handled by JHipster
+        return super._prompting();
+    }
+
+    get configuring() {
+        // Here we are not overriding this phase and hence its being handled by JHipster
+        return super._configuring();
+    }
+
+    get default() {
+        // Here we are not overriding this phase and hence its being handled by JHipster
+        return super._default();
+    }
+
+    get writing() {
+        // Here we are not overriding this phase and hence its being handled by JHipster
+        return super._writing();
+    }
+
+    get install() {
+        // Here we are not overriding this phase and hence its being handled by JHipster
+        return super._install();
+    }
+
+    get end() {
+        // Here we are not overriding this phase and hence its being handled by JHipster
+        return super._end();
+    }
 };
