@@ -22,7 +22,7 @@
     "url": "git+https://github.com/nwaki1/generator-jhipster-darkotech.git"
   },
   "dependencies": {
-    "chalk": "2.4.1",
+    "chalk": "5.0.0",
     "generator-jhipster": "7.4.1"
   },
   "devDependencies": {
