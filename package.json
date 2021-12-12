@@ -14,7 +14,7 @@
     "url": "https://github.com/nwaki1"
   },
   "files": [
-    "generators"
+    "./generators/"
   ],
   "main": "generators/app/index.js",
   "repository": {
